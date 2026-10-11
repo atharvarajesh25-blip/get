@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12201c">
+<title>Studybox: private AI study tutor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#e8eeea; --surface:#ffffff; --ink:#12201c; --muted:#5b6b66; --line:#cfdad4;
+  --accent:#3a4de0; --accent-ink:#ffffff; --mark:#ffd84d; --good:#1f8a4c; --bad:#c43d3d;
+  --serif:Georgia,"Times New Roman",serif; --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0e1714;--surface:#16231f;--ink:#e6efeb;--muted:#9bb0a8;--line:#2a3b35;--accent:#8c99ff;--accent-ink:#0e1714;--good:#4cc27f;--bad:#ff7a7a}
+}
+:root[data-theme="dark"]{--bg:#0e1714;--surface:#16231f;--ink:#e6efeb;--muted:#9bb0a8;--line:#2a3b35;--accent:#8c99ff;--accent-ink:#0e1714;--good:#4cc27f;--bad:#ff7a7a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans);display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px)}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px}
+h1{font:700 22px/1 var(--serif);margin:0;letter-spacing:-.01em}
+h1 span{background:linear-gradient(transparent 60%,var(--mark) 60%);padding:0 2px;color:#12201c}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 12px;font:600 13px var(--sans);display:flex;gap:8px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.dot.on{background:var(--good)}
+main{flex:1;overflow-y:auto;padding:4px 16px 24px;max-width:720px;width:100%;margin:0 auto}
+nav{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{border:0;background:none;color:var(--muted);padding:11px 2px;font:600 13px var(--sans);border-top:3px solid transparent}
+nav button[aria-selected="true"]{color:var(--ink);border-top-color:var(--accent)}
+.panel{display:none}.panel.show{display:block}
+h2{font:700 26px/1.15 var(--serif);margin:12px 0 6px}
+p.lead{color:var(--muted);margin:0 0 14px}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 5px}
+input[type=text],textarea,select{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:11px 12px;font:16px var(--sans)}
+textarea{min-height:190px;resize:vertical}
+button.btn{border:0;border-radius:10px;padding:12px 16px;font:700 15px var(--sans);background:var(--accent);color:var(--accent-ink)}
+button.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.btn:disabled{opacity:.5}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--mark);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.src{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px}
+.src.active{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
+.src b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src small{color:var(--muted)}
+.out{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px}
+.out h3{font:700 19px var(--serif);margin:14px 0 4px}.out ul{padding-left:20px;margin:6px 0}
+.note{color:var(--muted);font-size:14px}
+.card{perspective:900px;margin-top:14px}
+.card button{width:100%;min-height:210px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);padding:24px;font:600 20px/1.35 var(--serif);text-align:center;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;transition:transform .25s}
+.card button.back{background:var(--mark);color:#12201c;border-color:var(--mark)}
+.card small{font:600 13px var(--sans);opacity:.7}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+.q p{margin:0 0 10px;font-weight:700}
+.opt{display:block;width:100%;text-align:left;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:9px;padding:10px 12px;margin-top:7px;font:15px var(--sans)}
+.opt.good{border-color:var(--good);background:color-mix(in srgb,var(--good) 18%,transparent)}
+.opt.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,transparent)}
+.chat{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.msg{padding:10px 13px;border-radius:14px;max-width:88%;white-space:pre-wrap}
+.msg.u{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.msg.a{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);max-width:min(440px,92vw);padding:20px}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+progress{width:100%;height:10px;margin-top:12px;accent-color:var(--accent)}
+.err{color:var(--bad);font-weight:600}
+.partSel{width:auto;max-width:100%;margin:0 0 12px;padding:8px 10px}
+.rate{display:flex;gap:10px;margin-top:12px}.rate .btn{flex:1}
+.badge{background:var(--mark);color:#12201c;border-radius:999px;font-size:11px;padding:1px 6px;margin-left:4px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Study<span>box</span></h1>
+  <button class="chip" id="chip" aria-label="AI model settings"><i class="dot" id="dot"></i><span id="chipText">Model off</span></button>
+</header>
+
+<main>
+  <section class="panel show" id="p-source">
+    <h2>Your material</h2>
+    <p class="lead">Paste notes or open a text or PDF file. Everything stays on this phone.</p>
+    <label for="title">Title</label>
+    <input type="text" id="title" placeholder="e.g. Biology chapter 4">
+    <label for="text">Text</label>
+    <textarea id="text" placeholder="Paste lecture notes, a textbook section, or a transcript"></textarea>
+    <div class="row">
+      <button class="btn" id="save">Save material</button>
+      <button class="btn alt" id="pick">Open file</button>
+      <input type="file" id="file" accept=".txt,.md,.pdf,text/plain,application/pdf" hidden>
+    </div>
+    <p class="note" id="lenNote"></p>
+    <h2 style="font-size:20px;margin-top:22px">Saved materials</h2>
+    <div id="list"></div>
+  </section>
+
+  <section class="panel" id="p-notes">
+    <h2>Notes</h2>
+    <p class="lead" id="notesFor"></p>
+    <select class="partSel" hidden aria-label="Part of this material"></select>
+    <div class="row" style="margin-top:0"><button class="btn" data-gen="notes">Make notes</button><button class="btn alt stop" hidden>Stop</button></div>
+    <div class="out" id="notesOut" hidden></div>
+  </section>
+
+  <section class="panel" id="p-cards">
+    <h2>Flashcards</h2>
+    <p class="lead" id="cardsFor"></p>
+    <select class="partSel" hidden aria-label="Part of this material"></select>
+    <div class="row" style="margin-top:0"><button class="btn" data-gen="cards">Make flashcards</button><button class="btn alt stop" hidden>Stop</button></div>
+    <p class="note" id="cardsMsg"></p>
+    <div class="row" id="cardsBar" hidden><button class="btn alt" id="modeBtn">Browse all</button></div>
+    <div id="cardsOut"></div>
+  </section>
+
+  <section class="panel" id="p-quiz">
+    <h2>Quiz</h2>
+    <p class="lead" id="quizFor"></p>
+    <select class="partSel" hidden aria-label="Part of this material"></select>
+    <div class="row" style="margin-top:0"><button class="btn" data-gen="quiz">Make quiz</button><button class="btn alt stop" hidden>Stop</button></div>
+    <p class="note" id="quizMsg"></p>
+    <div id="quizOut"></div>
+  </section>
+
+  <section class="panel" id="p-tutor">
+    <h2>Tutor</h2>
+    <p class="lead" id="tutorFor"></p>
+    <select class="partSel" hidden aria-label="Part of this material"></select>
+    <div class="chat" id="chat"></div>
+    <div class="row">
+      <input type="text" id="ask" placeholder="Ask about your material" style="flex:1;min-width:0">
+      <button class="btn" id="send">Ask</button>
+      <button class="btn alt stop" hidden>Stop</button>
+    </div>
+  </section>
+</main>
+
+<nav role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="source" aria-selected="true">Material</button>
+  <button role="tab" data-tab="notes" aria-selected="false">Notes</button>
+  <button role="tab" data-tab="cards" aria-selected="false">Cards</button>
+  <button role="tab" data-tab="quiz" aria-selected="false">Quiz</button>
+  <button role="tab" data-tab="tutor" aria-selected="false">Tutor</button>
+</nav>
+
+<dialog id="dlg">
+  <h2 style="margin-top:0;font-size:22px">AI model</h2>
+  <p class="note" id="gpuMsg">The model downloads once, then runs on your phone. Use Wi-Fi: the files are large.</p>
+  <label for="model">Model</label>
+  <select id="model">
+    <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Small (about 0.4 GB): fastest, basic answers</option>
+    <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC" selected>Medium (about 1 GB): recommended</option>
+    <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Large (about 2 GB): best quality, needs 8 GB RAM</option>
+  </select>
+  <progress id="prog" value="0" max="1" hidden></progress>
+  <p class="note" id="progText"></p>
+  <div class="row">
+    <button class="btn" id="load">Download and start</button>
+    <button class="btn alt" id="close">Close</button>
+  </div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+const WEBLLM="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.79/+esm";
+const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFW="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const MAXC=6000;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+/* ---------- storage ---------- */
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+let sources=store.get("sb:sources",[]);
+let activeId=store.get("sb:active",null);
+let gen=store.get("sb:gen",{});            // {id:{notes,cards,quiz}}
+let chatHist=[];
+let part=0;
+const active=()=>sources.find(s=>s.id===activeId)||null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- tabs ---------- */
+function show(tab){
+  $$(".panel").forEach(p=>p.classList.toggle("show",p.id==="p-"+tab));
+  $$("nav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));
+  render();
+}
+$$("nav button").forEach(b=>b.onclick=()=>show(b.dataset.tab));
+
+/* ---------- materials ---------- */
+function renderList(){
+  const box=$("#list");
+  if(!sources.length){box.innerHTML='<p class="note">Nothing saved yet. Paste text above and tap Save material.</p>';return}
+  box.innerHTML=sources.map(s=>`<div class="src ${s.id===activeId?"active":""}"><div style="min-width:0"><b>${esc(s.title)}</b><small>${s.text.length.toLocaleString()} characters</small></div>
+  <span class="row" style="margin:0"><button class="btn alt" data-use="${s.id}">${s.id===activeId?"In use":"Use"}</button><button class="btn alt" data-del="${s.id}" aria-label="Delete ${esc(s.title)}">Delete</button></span></div>`).join("");
+  box.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>{activeId=b.dataset.use;part=0;store.set("sb:active",activeId);chatHist=[];render()});
+  box.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    sources=sources.filter(s=>s.id!==b.dataset.del);for(const k of Object.keys(gen))if(k.startsWith(b.dataset.del+"#"))delete gen[k];part=0;
+    if(activeId===b.dataset.del)activeId=sources[0]?.id||null;
+    store.set("sb:sources",sources);store.set("sb:gen",gen);store.set("sb:active",activeId);chatHist=[];render()});
+}
+$("#text").oninput=()=>{const n=$("#text").value.length;$("#lenNote").textContent=n>MAXC?`Long text: it will be split into ${splitParts($("#text").value).length} parts. Pick a part in the Notes, Cards, Quiz and Tutor tabs.`:""};
+$("#save").onclick=()=>{
+  const text=$("#text").value.trim();
+  if(!text){$("#lenNote").textContent="Add some text first.";return}
+  const s={id:String(Date.now()),title:$("#title").value.trim()||text.slice(0,32)+"…",text};
+  sources.unshift(s);activeId=s.id;part=0;chatHist=[];
+  store.set("sb:sources",sources);store.set("sb:active",activeId);
+  $("#title").value="";$("#text").value="";$("#lenNote").textContent="Saved. Open Notes, Cards, Quiz or Tutor.";render();
+};
+$("#pick").onclick=()=>$("#file").click();
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("Could not load PDF reader (needs internet once)"));document.head.appendChild(s)})}
+$("#file").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  $("#title").value=f.name.replace(/\.[^.]+$/,"");
+  try{
+    if(/\.pdf$/i.test(f.name)){
+      $("#lenNote").textContent="Reading PDF…";
+      if(!window.pdfjsLib)await loadScript(PDFJS);
+      pdfjsLib.GlobalWorkerOptions.workerSrc=PDFW;
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+      let out="";
+      for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();out+=c.items.map(x=>x.str).join(" ")+"\n\n"}
+      $("#text").value=out.trim();
+      if(!out.trim())$("#lenNote").textContent="This PDF has no selectable text (it may be scanned).";
+    }else $("#text").value=await f.text();
+    $("#text").oninput();
+  }catch(err){$("#lenNote").innerHTML='<span class="err">'+esc(err.message)+"</span>"}
+  e.target.value="";
+};
+
+/* ---------- model ---------- */
+let engine=null, busy=false;
+const dlg=$("#dlg");
+$("#chip").onclick=()=>dlg.showModal();
+$("#close").onclick=()=>dlg.close();
+if(!navigator.gpu){$("#gpuMsg").innerHTML='<span class="err">This browser has no WebGPU, so the AI cannot run here. Update Chrome on Android (version 121 or newer) or try another phone.</span>';$("#load").disabled=true}
+$("#load").onclick=async()=>{
+  $("#load").disabled=true;$("#prog").hidden=false;$("#progText").textContent="Starting…";
+  try{
+    const w=await import(WEBLLM);
+    engine=await w.CreateMLCEngine($("#model").value,{initProgressCallback:p=>{$("#prog").value=p.progress||0;$("#progText").textContent=p.text||""}});
+    $("#dot").classList.add("on");$("#chipText").textContent="Model ready";
+    $("#progText").textContent="Ready. Close this and start studying.";
+    store.set("sb:model",$("#model").value);
+  }catch(err){
+    $("#progText").innerHTML='<span class="err">'+esc(err.message||err)+"</span> Try the Small model, close other apps, and retry.";
+    $("#load").disabled=false;
+  }
+};
+const savedModel=store.get("sb:model",null);if(savedModel)$("#model").value=savedModel;
+
+async function ask(system,user,{temp=0.3,max=900,onText,history=[]}={}){
+  if(!engine)throw new Error("Start the AI model first (tap the chip at the top).");
+  busy=true;$$(".stop").forEach(b=>b.hidden=false);
+  try{
+    const stream=await engine.chat.completions.create({messages:[{role:"system",content:system},...history,{role:"user",content:user}],temperature:temp,max_tokens:max,stream:true});
+    let out="";
+    for await(const c of stream){out+=c.choices[0]?.delta?.content||"";onText&&onText(out)}
+    return out;
+  }finally{busy=false;$$(".stop").forEach(b=>b.hidden=true)}
+}
+$$(".stop").forEach(b=>b.onclick=()=>{try{engine&&engine.interruptGenerate()}catch(e){}});
+function splitParts(text){
+  if(text.length<=MAXC)return [text];
+  const pieces=[];
+  for(const p of text.split(/\n\s*\n/)){
+    if(p.length<=MAXC){pieces.push(p);continue}
+    let cur="";
+    for(const sn of p.split(/(?<=[.!?])\s+/)){
+      if(cur&&(cur+" "+sn).length>MAXC){pieces.push(cur);cur=""}
+      cur=cur?cur+" "+sn:sn;
+      while(cur.length>MAXC){pieces.push(cur.slice(0,MAXC));cur=cur.slice(MAXC)}
+    }
+    if(cur)pieces.push(cur);
+  }
+  const out=[];let cur="";
+  for(const p of pieces){
+    if(cur&&(cur.length+p.length+2)>MAXC){out.push(cur);cur=p}else cur=cur?cur+"\n\n"+p:p;
+  }
+  if(cur)out.push(cur);
+  return out;
+}
+const parts=()=>{const s=active();return s?splitParts(s.text):[]};
+const gk=()=>activeId+"#"+part;
+const material=()=>parts()[part]||"";
+const SYS="You are a careful study assistant. Use only the material the student gives you. If something is not in the material, say so.";
+
+/* ---------- notes ---------- */
+function md(t){
+  let h=esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+  const lines=h.split("\n"),out=[];let inList=false;
+  for(const l of lines){
+    const li=l.match(/^\s*[-*•]\s+(.*)/),hd=l.match(/^#{1,4}\s+(.*)/);
+    if(li){if(!inList){out.push("<ul>");inList=true}out.push("<li>"+li[1]+"</li>");continue}
+    if(inList){out.push("</ul>");inList=false}
+    if(hd)out.push("<h3>"+hd[1]+"</h3>");else if(l.trim())out.push("<p>"+l+"</p>");
+  }
+  if(inList)out.push("</ul>");return out.join("");
+}
+async function makeNotes(){
+  const key=gk();
+  const el=$("#notesOut");el.hidden=false;el.innerHTML="<p class='note'>Thinking…</p>";
+  const r=await ask(SYS,`Material:\n"""\n${material()}\n"""\n\nWrite concise study notes in markdown: a one-sentence overview, then 6 to 10 bullet points of the key ideas, then a "Key terms" list with a one-line definition each.`,{max:900,onText:t=>el.innerHTML=md(t)});
+  (gen[key]=gen[key]||{}).notes=r;store.set("sb:gen",gen);el.innerHTML=md(r);
+}
+
+/* ---------- flashcards with spaced repetition ---------- */
+const DAY=86400000, STEPS=[0,0,1,3,7,16];   // days until next review, by box 1..5
+let cards=[],ci=0,flipped=false,mode="review";
+function parseCards(t){
+  const out=[];
+  for(const l of t.split("\n")){const m=l.match(/^\s*(?:\d+[.)]\s*)?\**Q\**[:.]\**\s*(.+?)\s*\|\s*\**A\**[:.]\**\s*(.+)$/i);if(m)out.push({q:m[1].replace(/\*+/g,""),a:m[2].replace(/\*+/g,""),box:1,due:0})}
+  return out;
+}
+function totalDue(){let n=0;for(const k in gen){const cs=gen[k]&&gen[k].cards;if(cs)for(const c of cs)if((c.due||0)<=Date.now())n++}return n}
+function badge(){const n=totalDue();$('nav button[data-tab="cards"]').innerHTML="Cards"+(n?`<span class="badge" aria-label="${n} due">${n}</span>`:"")}
+function saveCards(){(gen[gk()]=gen[gk()]||{}).cards=cards;store.set("sb:gen",gen);badge()}
+function when(ts){const d=ts-Date.now();if(d<=0)return "now";if(d<DAY)return "later today";const n=Math.ceil(d/DAY);return "in "+n+(n===1?" day":" days")}
+function renderCard(){
+  const box=$("#cardsOut");
+  if(!cards.length){box.innerHTML="";$("#cardsBar").hidden=true;return}
+  $("#cardsBar").hidden=false;
+  $("#modeBtn").textContent=mode==="review"?"Browse all":"Review due";
+  const all=cards.map((c,i)=>({c,i}));
+  const queue=mode==="review"?all.filter(x=>(x.c.due||0)<=Date.now()):all;
+  if(!queue.length){
+    const next=Math.min(...cards.map(c=>c.due||0));
+    box.innerHTML=`<div class="out"><h3>All caught up</h3><p>No cards are due for this material. Next review ${when(next)}.</p></div>`;return;
+  }
+  if(ci>=queue.length)ci=0;
+  const c=queue[ci].c;
+  const label=mode==="review"?`${flipped?"Answer":"Question"}, ${ci+1} of ${queue.length} due`:`${flipped?"Answer":"Question"} ${ci+1} of ${queue.length}`;
+  let foot;
+  if(mode==="review")foot=flipped?`<div class="rate"><button class="btn alt" id="again">Again</button><button class="btn" id="good">Got it</button></div>`:`<p class="note">Tap the card to see the answer, then say how you did.</p>`;
+  else foot=`<div class="row"><button class="btn alt" id="prev">Back</button><button class="btn alt" id="next">Next</button><button class="btn alt" id="shuf">Shuffle</button></div>`;
+  box.innerHTML=`<div class="card"><button class="${flipped?"back":""}" id="flip" aria-label="Flip card"><small>${label}</small>${esc(flipped?c.a:c.q)}</button></div>${foot}`;
+  $("#flip").onclick=()=>{flipped=!flipped;renderCard()};
+  if(mode==="review"&&flipped){
+    $("#again").onclick=()=>{c.box=1;c.due=Date.now();ci++;flipped=false;saveCards();renderCard()};
+    $("#good").onclick=()=>{c.box=Math.min(5,(c.box||1)+1);c.due=Date.now()+STEPS[c.box]*DAY;flipped=false;saveCards();renderCard()};
+  }
+  if(mode!=="review"){
+    $("#prev").onclick=()=>{ci=(ci-1+queue.length)%queue.length;flipped=false;renderCard()};
+    $("#next").onclick=()=>{ci=(ci+1)%queue.length;flipped=false;renderCard()};
+    $("#shuf").onclick=()=>{cards.sort(()=>Math.random()-.5);ci=0;flipped=false;saveCards();renderCard()};
+  }
+}
+async function makeCards(){
+  const key=gk();
+  $("#cardsMsg").textContent="Making cards…";
+  const known=cards.slice(0,6).map(c=>"- "+c.q).join("\n");
+  const avoid=known?`\nDo not repeat these questions:\n${known}\n`:"";
+  const r=await ask(SYS,`Material:\n"""\n${material()}\n"""\n${avoid}\nMake 8 flashcards. Put each on one line in exactly this format, with no other text:\nQ: question | A: short answer`,{temp:.4,max:700});
+  if(key!==gk())return;
+  const fresh=parseCards(r),have=new Set(cards.map(c=>c.q.toLowerCase()));
+  let added=0;
+  for(const c of fresh)if(!have.has(c.q.toLowerCase())){cards.push(c);added++}
+  $("#cardsMsg").textContent=added?`Added ${added} new card${added===1?"":"s"}. Tap a card to flip it.`:(fresh.length?"No new cards: the AI repeated itself. Try again.":"The AI's answer was not in the right format. Tap Make flashcards to try again.");
+  mode="review";ci=0;flipped=false;saveCards();renderCard();
+}
+
+/* ---------- quiz ---------- */
+function parseQuiz(t){
+  const blocks=t.split(/\n(?=\s*(?:\d+[.)]\s*)?\**Q\d*\**[:.])/i),out=[];
+  for(const b of blocks){
+    const q=b.match(/Q\d*\**[:.]\**\s*(.+)/i);if(!q)continue;
+    const opts={};for(const m of b.matchAll(/^\s*\**([A-D])\**[).:]\s*(.+)$/gim))opts[m[1].toUpperCase()]=m[2].replace(/\*+/g,"");
+    const a=b.match(/Answer\**[:.]?\**\s*\(?([A-D])/i);
+    if(Object.keys(opts).length>=3&&a&&opts[a[1].toUpperCase()])out.push({q:q[1].replace(/\*+/g,""),opts,ans:a[1].toUpperCase()});
+  }
+  return out;
+}
+function renderQuiz(qs){
+  const box=$("#quizOut");let score=0,done=0;
+  box.innerHTML=qs.map((q,i)=>`<div class="q" data-i="${i}"><p>${i+1}. ${esc(q.q)}</p>${Object.entries(q.opts).map(([k,v])=>`<button class="opt" data-k="${k}">${k}. ${esc(v)}</button>`).join("")}</div>`).join("")+'<p class="note" id="score"></p>';
+  box.querySelectorAll(".q").forEach(el=>{
+    const q=qs[+el.dataset.i];
+    el.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+      if(el.dataset.done)return;el.dataset.done=1;done++;
+      el.querySelectorAll(".opt").forEach(o=>{if(o.dataset.k===q.ans)o.classList.add("good")});
+      if(b.dataset.k===q.ans)score++;else b.classList.add("bad");
+      if(done===qs.length)$("#score").textContent=`You got ${score} of ${qs.length}.`;
+    });
+  });
+}
+async function makeQuiz(){
+  const key=gk();
+  $("#quizMsg").textContent="Writing questions…";
+  const r=await ask(SYS,`Material:\n"""\n${material()}\n"""\n\nWrite 5 multiple-choice questions. Use exactly this format for each, with no other text:\nQ: question\nA) option\nB) option\nC) option\nD) option\nAnswer: B`,{temp:.3,max:900});
+  const qs=parseQuiz(r);
+  $("#quizMsg").textContent=qs.length?"Tap an answer.":"The AI's answer was not in the right format. Tap Make quiz to try again.";
+  (gen[key]=gen[key]||{}).quiz=qs;store.set("sb:gen",gen);renderQuiz(qs);
+}
+
+/* ---------- tutor ---------- */
+function renderChat(){
+  $("#chat").innerHTML=chatHist.map(m=>`<div class="msg ${m.role==="user"?"u":"a"}">${esc(m.content)}</div>`).join("");
+}
+async function send(){
+  const q=$("#ask").value.trim();if(!q||busy)return;
+  if(!active()){$("#tutorFor").textContent="Save or pick a material first.";return}
+  $("#ask").value="";
+  const hist=chatHist.slice(-6);
+  chatHist.push({role:"user",content:q},{role:"assistant",content:"…"});renderChat();
+  try{
+    const r=await ask(SYS+"\n\nMaterial:\n\"\"\"\n"+material()+"\n\"\"\"\nAnswer in 1 to 4 short sentences.",q,{temp:.4,max:350,history:hist,onText:t=>{chatHist[chatHist.length-1].content=t;renderChat()}});
+    chatHist[chatHist.length-1].content=r;
+  }catch(err){chatHist[chatHist.length-1].content=err.message}
+  renderChat();
+}
+$("#send").onclick=send;$("#ask").onkeydown=e=>{if(e.key==="Enter")send()};
+
+/* ---------- wiring ---------- */
+const jobs={notes:makeNotes,cards:makeCards,quiz:makeQuiz};
+$$("[data-gen]").forEach(b=>b.onclick=async()=>{
+  if(!active()){alert("Save or pick a material first.");show("source");return}
+  if(busy)return;
+  try{await jobs[b.dataset.gen]()}catch(err){alert(err.message);if(!engine)dlg.showModal()}
+});
+function render(){
+  renderList();
+  const s=active(),name=s?`Using: ${s.title}`:"No material yet. Add some in the Material tab.";
+  ["notesFor","cardsFor","quizFor","tutorFor"].forEach(id=>$("#"+id).textContent=name);
+  const g=(s&&gen[gk()])||{};
+  const ne=$("#notesOut");if(g.notes){ne.hidden=false;ne.innerHTML=md(g.notes)}else ne.hidden=true;
+  cards=g.cards||[];ci=0;flipped=false;renderCard();
+  if(g.quiz&&g.quiz.length)renderQuiz(g.quiz);else $("#quizOut").innerHTML="";
+  renderChat();
+  const ps=parts();
+  $$(".partSel").forEach(sel=>{
+    sel.hidden=ps.length<2;
+    sel.innerHTML=ps.map((p,i)=>`<option value="${i}" ${i===part?"selected":""}>Part ${i+1} of ${ps.length}: ${esc(p.slice(0,36).replace(/\s+/g," "))}…</option>`).join("");
+  });
+  badge();
+}
+$$(".partSel").forEach(sel=>sel.onchange=()=>{if(busy){render();return}part=+sel.value;chatHist=[];$("#cardsMsg").textContent="";$("#quizMsg").textContent="";render()});
+$("#modeBtn").onclick=()=>{mode=mode==="review"?"browse":"review";ci=0;flipped=false;renderCard()};
+render();
+if(!engine)setTimeout(()=>dlg.showModal(),300);
+if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
